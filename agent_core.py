@@ -77,7 +77,20 @@ async def save_order(whatsapp_number: str, order_details: str) -> str:
     print(f"[agent_core.py] save_order created order: {order}")
     return f"Order {order.id} placed successfully! Thankyou for letting us serve."
 
-
+@function_tool
+async def cancel_order(whatsapp_number: str, order_id: str) -> str:
+    """Cancel an order and increment the user's cancellation count."""
+    if db is None:
+        raise RuntimeError("Database not initialized")
+    order = await db.order.find_unique(where={"id": order_id}, include={"user": True})
+    print(f"[agent_core.py] cancel_order order: {order}")
+    if order and order.user.whatsappNumber == whatsapp_number and order.status == "placed":
+        await db.order.update(where={"id": order_id}, data={"status": "cancelled"})
+        await db.user.update(where={"whatsappNumber": whatsapp_number}, data={"cancellationCount": {"increment": 1}})
+        print(f"[agent_core.py] cancel_order cancelled order and incremented cancellation count.")
+        return f"Order {order_id} cancelled."
+    print(f"[agent_core.py] cancel_order: Order not found or already cancelled.")
+    return "Order not found or already cancelled."
 
 @function_tool
 async def perfume_info(query: str) -> str:
